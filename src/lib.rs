@@ -11,6 +11,40 @@ pub enum Environment {
     Production,
 }
 
+/// Load environment variables from .env files based on the provided environment.
+/// Will prioritize files in the order described [here](https://github.com/bkeepers/dotenv/blob/c6e583a/README.md#should-i-commit-my-env-file).
+pub fn rubenvy(environment: Environment) -> Result<Vec<PathBuf>> {
+    let mut paths = Vec::with_capacity(4);
+
+    let mut add_to_env = |filename: &str| -> Result<()> {
+        match from_filename(filename) {
+            Ok(path) => Ok(paths.push(path)),
+            Err(e) if e.not_found() => Ok(()),
+            Err(e) => Err(e),
+        }
+    };
+
+    match environment {
+        Environment::Test => {
+            add_to_env(".env.test.local")?;
+            add_to_env(".env.test")?;
+        }
+        Environment::Development => {
+            add_to_env(".env.development.local")?;
+            add_to_env(".env.local")?;
+            add_to_env(".env.development")?;
+        }
+        Environment::Production => {
+            add_to_env(".env.production.local")?;
+            add_to_env(".env.local")?;
+            add_to_env(".env.production")?;
+        }
+    }
+    add_to_env(".env")?;
+
+    Ok(paths)
+}
+
 /// Automatically load environment variables based on the current build configuration.
 ///
 /// `#cfg(test)` implies test environment.
@@ -28,48 +62,14 @@ pub fn rubenvy_auto() -> Result<Vec<PathBuf>> {
     rubenvy(environment)
 }
 
-/// Load environment variables from .env files based on the provided environment.
-/// Will prioritize files in the order described [here](https://github.com/bkeepers/dotenv/blob/c6e583a/README.md#should-i-commit-my-env-file).
-pub fn rubenvy(environment: Environment) -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::with_capacity(4);
-
-    let mut add_to_env = |filename: &str| -> Result<()> {
-        match from_filename(filename) {
-            Ok(path) => Ok(paths.push(path)),
-            Err(e) if e.not_found() => Ok(()),
-            Err(e) => Err(e),
-        }
-    };
-
-    match environment {
-        Environment::Development => {
-            add_to_env(".env.development.local")?;
-            add_to_env(".env.local")?;
-            add_to_env(".env.development")?;
-        }
-        Environment::Test => {
-            add_to_env(".env.test.local")?;
-            add_to_env(".env.test")?;
-        }
-        Environment::Production => {
-            add_to_env(".env.production.local")?;
-            add_to_env(".env.local")?;
-            add_to_env(".env.production")?;
-        }
-    }
-    add_to_env(".env")?;
-
-    Ok(paths)
+/// Load the test environment files.
+pub fn rubenvy_test() -> Result<Vec<PathBuf>> {
+    rubenvy(Environment::Test)
 }
 
 /// Load the development environment files.
 pub fn rubenvy_development() -> Result<Vec<PathBuf>> {
     rubenvy(Environment::Development)
-}
-
-/// Load the test environment files.
-pub fn rubenvy_test() -> Result<Vec<PathBuf>> {
-    rubenvy(Environment::Test)
 }
 
 /// Load the production environment files.
