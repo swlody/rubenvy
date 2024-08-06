@@ -1,13 +1,35 @@
+//! Support for [Ruby-style](https://github.com/bkeepers/dotenv/blob/c6e583a/README.md#what-other-env-files-can-i-use)
+//! dotenv loading priorities utilizing [dotenvy](https://github.com/allan2/dotenvy).
+
 use std::path::PathBuf;
 
-use dotenvy::{dotenv, from_filename, Result};
+use dotenvy::{from_filename, Result};
 
 pub enum Environment {
-    Development,
     Test,
+    Development,
     Production,
 }
 
+/// Automatically load environment variables based on the current build configuration.
+///
+/// `#cfg(test)` implies test environment.
+/// `#cfg(not(debug_assertions))` implies production environment.
+/// `#cfg(debug_assertions)` implies development environment.
+pub fn rubenvy_auto() -> Result<Vec<PathBuf>> {
+    let environment = if cfg!(test) {
+        Environment::Test
+    } else if cfg!(debug_assertions) {
+        Environment::Development
+    } else {
+        Environment::Production
+    };
+
+    rubenvy(environment)
+}
+
+/// Load environment variables from .env files based on the provided environment.
+/// Will prioritize files in the order described [here](https://github.com/bkeepers/dotenv/blob/c6e583a/README.md#should-i-commit-my-env-file).
 pub fn rubenvy(environment: Environment) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::with_capacity(4);
 
@@ -35,19 +57,22 @@ pub fn rubenvy(environment: Environment) -> Result<Vec<PathBuf>> {
             add_to_env(".env.production")?;
         }
     }
-    paths.push(dotenv()?);
+    add_to_env(".env")?;
 
     Ok(paths)
 }
 
+/// Load the development environment files.
 pub fn rubenvy_development() -> Result<Vec<PathBuf>> {
     rubenvy(Environment::Development)
 }
 
+/// Load the test environment files.
 pub fn rubenvy_test() -> Result<Vec<PathBuf>> {
     rubenvy(Environment::Test)
 }
 
+/// Load the production environment files.
 pub fn rubenvy_production() -> Result<Vec<PathBuf>> {
     rubenvy(Environment::Production)
 }
