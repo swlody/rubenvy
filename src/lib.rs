@@ -1,5 +1,4 @@
-//! Support for [Ruby-style](https://github.com/bkeepers/dotenv/blob/c6e583a/README.md#what-other-env-files-can-i-use)
-//! dotenv loading priorities utilizing [dotenvy](https://github.com/allan2/dotenvy).
+#![doc = include_str!("../README.md")]
 
 use std::path::PathBuf;
 
@@ -13,15 +12,14 @@ pub enum Environment {
 
 /// Load environment variables from .env files based on the provided environment.
 /// Will prioritize files in the order described [here](https://github.com/bkeepers/dotenv/blob/c6e583a/README.md#should-i-commit-my-env-file).
+/// Will bubble up all errors from dotenv with the exception of file not found errors which are ignored.
 pub fn rubenvy(environment: Environment) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::with_capacity(4);
 
-    let mut add_to_env = |filename: &str| -> Result<()> {
-        match from_filename(filename) {
-            Ok(path) => Ok(paths.push(path)),
-            Err(e) if e.not_found() => Ok(()),
-            Err(e) => Err(e),
-        }
+    let mut add_to_env = |filename: &str| match from_filename(filename) {
+        Ok(path) => Ok(paths.push(path)),
+        Err(e) if e.not_found() => Ok(()),
+        Err(e) => Err(e),
     };
 
     match environment {
